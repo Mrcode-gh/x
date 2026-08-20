@@ -128,6 +128,19 @@
                     <option value="5">5 Cop Cars</option>
                 </select>
             </div>
+            <div class="form-group">
+                <label>Adjust Cop Base Speed Limit (MPH)</label>
+                <input 
+                    type="number" 
+                    id="cop-speed-limit" 
+                    value="15" 
+                    min="1" 
+                    max="500" 
+                    step="1"
+                    oninput="if(this.value > 500) this.value = 500; if(this.value < 1 && this.value !== '') this.value = 1;"
+                >
+            </div>
+
         </div>
 
         <div id="group-split-versus" style="display:none;">
@@ -514,18 +527,28 @@
                 } else if (countdownVal === 0) {
                     overlay.innerText = "GO!";
                     
-                    if (currentMode === 'chase') {
+                                   if (currentMode === 'chase') {
                         let numCops = parseInt(copCountSel.value);
+                        
+                        // Read your text box value and limit it between 1 and 500
+                        let customSpeedInput = parseFloat(document.getElementById('cop-speed-limit').value) || 15;
+                        customSpeedInput = Math.max(1, Math.min(500, customSpeedInput));
+                        
+                        // Convert the MPH value to game units
+                        let finalCopGameSpeed = customSpeedInput / 4.3;
+
                         for (let i = 0; i < numCops; i++) {
                             const spawnAngle = (Math.PI * 2 / numCops) * i;
                             cops.push({
                                 x: Math.cos(spawnAngle) * 750 + car.x,
                                 y: Math.sin(spawnAngle) * 750 + car.y,
                                 width: 30, length: 65, angle: spawnAngle + Math.PI, speed: 0,
-                                maxSpeed: car.maxSpeed, accel: car.accel * 1.5, steerCap: 0.2, lightState: 0
+                                maxSpeed: finalCopGameSpeed, // Applies your custom limit
+                                accel: car.accel * 1.5, steerCap: 0.2, lightState: 0
                             });
                         }
                     }
+
                     
                     countdownActive = false;
                     gameActive = true;
@@ -674,24 +697,25 @@ P2 WINS!`;
                 }
             }
 
-            if (gameActive && currentMode === 'chase') {
-                cops.forEach((cop) => {
-                    let target = car; 
-                    const dx = target.x - cop.x, dy = target.y - cop.y;
-                    const dist = Math.sqrt(dx*dx + dy*dy);
-                    
-                    cop.angle = Math.atan2(dy, dx); 
-                    cop.maxSpeed = target.speed;
-                    cop.speed = target.speed;
-                    
-                    cop.x += Math.cos(cop.angle) * cop.speed;
-                    cop.y += Math.sin(cop.angle) * cop.speed;
-                    cop.lightState = (cop.lightState + 1) % 16;
+                  if (gameActive && currentMode === 'chase') {
+            cops.forEach((cop) => {
+                let target = car; 
+                const dx = target.x - cop.x, dy = target.y - cop.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                
+                cop.angle = Math.atan2(dy, dx); 
+                
+                // Accelerate smoothly up to the speed set in your custom text box
+                cop.speed = Math.min(cop.speed + cop.accel, cop.maxSpeed);
+                
+                cop.x += Math.cos(cop.angle) * cop.speed;
+                cop.y += Math.sin(cop.angle) * cop.speed;
+                cop.lightState = (cop.lightState + 1) % 16;
 
-                    if (dist < 36) { endGame(false); }
-                });
-            }
+                if (dist < 36) { endGame(false); }
+            });
         }
+
 
         function drawRadar() {
             mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
