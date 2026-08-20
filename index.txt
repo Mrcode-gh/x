@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mustang Infinite Drift Arena</title>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background: #0b0f19; font-family: sans-serif; user-select: none; }
+        canvas { display: block; background: #141a29; }
+        
+        .ui-panel { position: absolute; background: rgba(15, 22, 38, 0.95); border: 2px solid #00ffcc; border-radius: 10px; padding: 15px; color: #fff; z-index: 50; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
+        #controls { top: 20px; left: 20px; width: 200px; z-index: 60; }
+        #audio { top: 20px; right: 80px; width: 240px; z-index: 60; }
+        #stats { bottom: 20px; left: 20px; font-family: monospace; font-size: 16px; z-index: 60; }
+        #chase-setup { top: 50%; left: 50%; transform: translate(-50%, -50%); width: 290px; text-align: center; z-index: 100; }
+        #open-setup-btn { display: none; bottom: 20px; left: 240px; width: 140px; background: #ff3366; border-color: #ff3366; color: #fff; position: absolute; z-index: 60; padding: 10px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+        .close-x { position: absolute; top: 10px; right: 12px; color: #ff3366; font-weight: bold; cursor: pointer; font-size: 18px; transition: 0.2s; }
+        .close-x:hover { color: #fff; }
+        .btn { background: #1f2d4d; border: 1px solid #00ffcc; color: #00ffcc; padding: 10px; width: 100%; margin-bottom: 8px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: #00ffcc; color: #000; }
+        .btn.active { background: #ff3366; color: #fff; border-color: #ff3366; }
+        
+        .radio-btn { background: #111726; border: 1px solid #445577; color: #aaa; padding: 8px; width: 100%; border-radius: 4px; cursor: pointer; text-align: left; margin-bottom: 4px; position: relative; z-index: 70; }
+        .radio-btn.playing { background: #00ffcc; color: #000; font-weight: bold; }
+        
+        .inst { font-size: 11px; color: #8899af; line-height: 1.4; margin-top: 5px; }
+        .form-group { margin-bottom: 12px; text-align: left; }
+        .form-group label { display: block; font-size: 12px; color: #00ffcc; margin-bottom: 4px; font-weight: bold; }
+        .form-group select, .form-group input { width: 100%; padding: 6px; background: #111726; border: 1px solid #445577; color: #fff; border-radius: 4px; box-sizing: border-box; }
+        
+        #game-overlay { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 44px; font-weight: bold; text-shadow: 0 0 15px rgba(0,0,0,1); z-index: 120; text-align: center; font-family: monospace; color: #fff; line-height: 1.3; white-space: pre-line; pointer-events: none; }
+        
+        #role-overlay-p1 { display: none; position: absolute; top: 35%; left: 25%; transform: translate(-50%, -50%); font-size: 34px; font-weight: bold; text-shadow: 0 0 15px rgba(0,0,0,1); z-index: 120; text-align: center; font-family: monospace; pointer-events: none; }
+        #role-overlay-p2 { display: none; position: absolute; top: 35%; left: 75%; transform: translate(-50%, -50%); font-size: 34px; font-weight: bold; text-shadow: 0 0 15px rgba(0,0,0,1); z-index: 120; text-align: center; font-family: monospace; pointer-events: none; }
+
+        #minimap-container { bottom: 20px; right: 20px; width: 160px; height: 160px; padding: 5px; border-color: #ff3366; box-shadow: 0 0 15px rgba(255,51,102,0.3); z-index: 60; }
+        #minimapCanvas { background: #0d1321; border: 1px solid #ff3366; border-radius: 6px; display: block; }
+        
+        #shop-btn { display: block; width: 100%; background: #ffcc00; border-color: #ffcc00; color: #000; margin-top: 8px; }
+        #shop-btn:hover { background: #fff; color: #000; }
+        #shop-panel { display: none; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 340px; text-align: center; max-height: 80vh; overflow-y: auto; z-index: 110; }
+        .shop-item { background: #111726; border: 1px solid #445577; padding: 10px; margin-bottom: 8px; border-radius: 6px; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+        .shop-item.selected { border-color: #00ffcc; box-shadow: 0 0 8px rgba(0,255,204,0.4); }
+        .item-info { font-size: 13px; }
+        .item-name { font-weight: bold; color: #fff; }
+        .item-stats { font-size: 11px; color: #8899af; margin-top: 2px; }
+        .shop-buy-btn { padding: 6px 12px; background: #ffcc00; border: none; color: #000; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .shop-buy-btn.owned { background: #1f2d4d; color: #00ffcc; border: 1px solid #00ffcc; }
+        .shop-buy-btn.active-car { background: #ff3366; color: #fff; border-color: #ff3366; }
+        
+        .reward-preview { background: #1a1226; border: 1px dashed #ffcc00; padding: 8px; border-radius: 6px; font-size: 13px; font-family: monospace; color: #ffcc00; margin-bottom: 12px; text-align: center; font-weight: bold; }
+
+        .mode-tab-bar { display: flex; gap: 5px; margin-bottom: 15px; background: #111726; padding: 4px; border-radius: 6px; border: 1px solid #445577; }
+        .tab-btn { flex: 1; background: transparent; border: none; color: #8899af; padding: 8px 4px; font-weight: bold; font-size: 12px; cursor: pointer; border-radius: 4px; transition: 0.2s; }
+        .tab-btn.selected { background: #ff3366; color: #fff; }
+        .tab-btn.selected.split { background: #00ffcc; color: #000; }
+
+        #dev-gear-btn { position: absolute; top: 20px; right: 20px; width: 45px; height: 45px; background: rgba(15, 22, 38, 0.9); border: 2px solid #ffcc00; border-radius: 10px; color: #ffcc00; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 130; box-shadow: 0 0 10px rgba(255,204,0,0.2); transition: 0.2s; }
+        #dev-gear-btn:hover { background: #ffcc00; color: #000; box-shadow: 0 0 15px rgba(255,204,0,0.5); }
+        #dev-panel { display: none; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; text-align: center; border-color: #ffcc00; box-shadow: 0 0 15px rgba(255,204,0,0.3); z-index: 140; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+
+    <button id="dev-gear-btn" title="Developer Controls">⚙️</button>
+    <div id="dev-panel" class="ui-panel">
+        <div class="close-x" id="close-dev-x" style="color: #ffcc00;">X</div>
+        <div style="font-weight:bold; color:#ffcc00; font-size: 16px; margin-bottom:15px; text-shadow: 0 0 5px #ffcc00;">🛠️ ADMIN DEV PORTAL</div>
+        <button id="dev-add-coins-btn" class="btn" style="border-color: #ffcc00; color: #ffcc00;">🪙 MOD WALLET BALANCES</button>
+        <button id="dev-unlock-car-btn" class="btn" style="border-color: #ffcc00; color: #ffcc00;">🏎️ INSTANT VEHICLE OVERRIDE</button>
+    </div>
+
+    <div id="controls" class="ui-panel">
+        <button id="cam-btn" class="btn">View: Close Chase</button>
+        <button id="drift-btn" class="btn">Drift Mode: OFF</button>
+        <button id="shop-btn" class="btn">🚗 ENTER GARAGE</button>
+        <div class="inst" id="p1-controls-inst">
+            <strong>P1 Controls (WASD):</strong><br>
+            • Drive/Rev: W / S<br>
+            • Steer: A / D
+        </div>
+        <div class="inst" id="p2-controls-inst" style="display:none; border-top: 1px dashed #445577; margin-top: 5px; padding-top: 5px;">
+            <strong style="color:#00ffcc;">P2 Controls (Arrows):</strong><br>
+            • Drive/Rev: Up / Down<br>
+            • Steer: Left / Right
+        </div>
+    </div>
+
+    <div id="audio" class="ui-panel">
+        <div style="font-weight:bold; color:#00ffcc; margin-bottom:8px;">💥 MUSTANG RADIO</div>
+        <button class="radio-btn" onclick="playMusic('pop')">🎵 Pop Radio (Upbeat)</button>
+        <button class="radio-btn" onclick="playMusic('rock')">🎸 Rock Station (Heavy)</button>
+        <button class="radio-btn" onclick="playMusic('calm')">🌊 Calm Waves (Ambient)</button>
+        <button class="radio-btn" onclick="playMusic('off')">🛑 Radio Off</button>
+        <div class="form-group" style="margin-top: 10px; margin-bottom: 0;">
+            <label>🎚️ Volume: <span id="vol-val">50%</span></label>
+            <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="0.5">
+        </div>
+    </div>
+
+    <div id="chase-setup" class="ui-panel">
+        <div class="close-x" id="close-setup-x">X</div>
+        
+        <div class="mode-tab-bar">
+            <button id="tab-chase" class="tab-btn selected">... COP CHASE</button>
+            <button id="tab-split" class="tab-btn">... 1V1 TAG</button>
+        </div>
+
+        <div id="dynamic-mode-title" style="font-weight:bold; color:#ff3366; font-size: 16px; margin-bottom:12px; text-shadow: 0 0 5px #ff3366; text-transform: uppercase;">Cop Pursuit Config</div>
+        
+        <div id="group-cop-chase">
+            <div class="form-group">
+                <label>Difficulty Tier</label>
+                <select id="game-difficulty">
+                    <option value="easy">Easy (Aimbot Cops)</option>
+                    <option value="medium" selected>Medium (Standard Aimbot)</option>
+                    <option value="hard">Hard (Hyper Aimbot)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Number of Cops</label>
+                <select id="cop-count">
+                    <option value="1">1 Cop Car</option>
+                    <option value="2" selected>2 Cop Cars</option>
+                    <option value="3">3 Cop Cars</option>
+                    <option value="4">4 Cop Cars</option>
+                    <option value="5">5 Cop Cars</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="group-split-versus" style="display:none;">
+            <div class="form-group">
+                <label>Both Players Vehicle Build</label>
+                <select id="p2-car-select">
+                    <option value="mustang_red">Ford Mustang GT</option>
+                    <option value="mustang_blue">Ford Mustang Shelby GT500</option>
+                    <option value="corvette">Chevrolet Corvette C8</option>
+                    <option value="huracan_black">Lamborghini Huracán</option>
+                    <option value="lambo_gold">Lamborghini Aventador SVJ</option>
+                    <option value="bugatti">Bugatti Chiron Super Sport</option>
+                    <option value="devxrbcar" style="display:none;" id="p2-rbcar-opt">devxrbcar</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Match Duration</label>
+            <select id="chase-duration">
+                <option value="20">20 Seconds</option>
+                <option value="30" selected>30 Seconds</option>
+                <option value="45">45 Seconds</option>
+                <option value="60">60 Seconds</option>
+            </select>
+        </div>
+
+        <div class="reward-preview" id="reward-box">
+            Est. Victory Payout: <span id="calc-reward">0</span> ...
+        </div>
+
+        <button id="start-btn" class="btn" style="background:#ff3366; border-color:#ff3366; color:#fff; margin-top:5px;">START PURSUIT</button>
+    </div>
+
+    <div id="shop-panel" class="ui-panel">
+        <div class="close-x" id="close-shop-x">X</div>
+        <div style="font-weight:bold; color:#ffcc00; font-size: 18px; margin-bottom:12px; text-shadow: 0 0 5px #ffcc00;">... VEHICLE GARAGE</div>
+        <div id="shop-items-container"></div>
+    </div>
+
+    <button id="open-setup-btn">... Open Setup</button>
+
+    <div id="stats" class="ui-panel">
+        <div>Coins: <span id="coin-val" style="color:#ffcc00; font-weight:bold;">0</span></div>
+        <div style="margin-top:4px;">P1 Speed: <span id="sp" style="color:#00ffcc; font-weight:bold;">0</span> MPH</div>
+        <div id="p2-speed-ui" style="display:none; margin-top:4px;">P2 Speed: <span id="sp2" style="color:#ff3366; font-weight:bold;">0</span> MPH</div>
+        <div id="chase-ui" style="display:none; margin-top: 5px;">Time Left: <span id="timer-val" style="color:#ff3366; font-weight:bold;">30</span>s</div>
+    </div>
+
+    <div id="minimap-container" class="ui-panel">
+        <canvas id="minimapCanvas" width="160" height="160"></canvas>
+    </div>
+
+    <div id="game-overlay"></div>
+    <div id="role-overlay-p1"></div>
+    <div id="role-overlay-p2"></div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const mapCanvas = document.getElementById('minimapCanvas');
+        const mapCtx = mapCanvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        let currentMode = 'chase'; 
+        let viewMode = 'close';
+        let driftMode = false;
+        let gameActive = false;
+        let gameEnding = false;
+        let countdownActive = false;
+        const gridSpacing = 150;
+        let skidmarks = [];
+        let cops = [];
+        let plannedReward = 0;
+        
+        let chaseTimer = 30;
+        let timerInterval = null;
+        let rainbowHue = 0;
+
+        // Tag roles: P1 tagger = true means P1 is tagger, P2 is runner. false means P1 runner, P2 tagger.
+        let p1IsTagger = true; 
+
+        let playerWallet = parseInt(localStorage.getItem('drift_coins')) || 0;
+        document.getElementById('coin-val').innerText = playerWallet;
+
+        const carCatalog = [
+            { id: 'mustang_red', name: 'Ford Mustang GT', price: 0, color: '#cc0022', stripe: '#ffffff', owned: true, maxSpeed: 23, accel: 0.38, friction: 0.08, driftFactor: 0.96 },
+            { id: 'mustang_blue', name: 'Ford Mustang Shelby GT500', price: 75, color: '#0055ff', stripe: '#ffffff', owned: false, maxSpeed: 25, accel: 0.43, friction: 0.08, driftFactor: 0.95 },
+            { id: 'corvette', name: 'Chevrolet Corvette C8 Stingray', price: 180, color: '#4da6ff', stripe: '#111111', owned: false, maxSpeed: 28, accel: 0.49, friction: 0.09, driftFactor: 0.94 },
+            { id: 'huracan_black', name: 'Lamborghini Huracán LP 610-4', price: 350, color: '#111113', stripe: '#1a1a1c', owned: false, maxSpeed: 31, accel: 0.54, friction: 0.09, driftFactor: 0.93 },
+            { id: 'lambo_gold', name: 'Lamborghini Aventador SVJ', price: 600, color: '#d4af37', stripe: '#000000', owned: false, maxSpeed: 33, accel: 0.58, friction: 0.10, driftFactor: 0.92 },
+            { id: 'bugatti', name: 'Bugatti Chiron Super Sport', price: 1000, color: '#0f2042', stripe: '#00bfff', owned: false, maxSpeed: 39, accel: 0.72, friction: 0.11, driftFactor: 0.89 },
+            { id: 'devxrbcar', name: 'devxrbcar', price: 0, color: 'rainbow', stripe: '#ffffff', owned: false, maxSpeed: 45, maxRev: -45, accel: 1.2, friction: 0.08, driftFactor: 0.92, isHidden: true }
+        ];
+
+        let savedOwned = JSON.parse(localStorage.getItem('drift_owned_cars')) || ['mustang_red'];
+        carCatalog.forEach(c => { if(savedOwned.includes(c.id)) c.owned = true; });
+
+        let activeCarId = localStorage.getItem('drift_active_car') || 'mustang_red';
+        let activeCarProfile = carCatalog.find(c => c.id === activeCarId) || carCatalog[0];
+
+        const car = {
+            x: -100, y: 0, width: 34, length: 72, speed: 0,
+            maxSpeed: activeCarProfile.maxSpeed, maxRev: -8, accel: activeCarProfile.accel, deccel: 0.2,
+            brake: 0.8, friction: activeCarProfile.friction, angle: 0, steerAngle: 0,
+            maxSteer: 0.11, driftFactor: activeCarProfile.driftFactor, normalFactor: 0.12, vx: 0, vy: 0
+        };
+
+        // P2 entity does not exist initially
+        let car2 = null;
+        let activeCarProfileP2 = null;
+
+        const keys = {};
+        window.addEventListener('keydown', e => { keys[e.key] = true; });
+        window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+        const tabChase = document.getElementById('tab-chase');
+        const tabSplit = document.getElementById('tab-split');
+        const configTitle = document.getElementById('dynamic-mode-title');
+        const copGroup = document.getElementById('group-cop-chase');
+        const splitGroup = document.getElementById('group-split-versus');
+        const startBtn = document.getElementById('start-btn');
+        const rewardBox = document.getElementById('reward-box');
+
+        tabChase.addEventListener('click', () => {
+            currentMode = 'chase';
+            tabChase.classList.add('selected');
+            tabSplit.classList.remove('selected', 'split');
+            configTitle.innerText = "Cop Pursuit Config";
+            configTitle.style.color = "#ff3366";
+            copGroup.style.display = 'block';
+            splitGroup.style.display = 'none';
+            rewardBox.style.display = 'block';
+            startBtn.style.background = "#ff3366";
+            startBtn.style.borderColor = "#ff3366";
+            startBtn.innerText = "START PURSUIT";
+            updatePayoutFormula();
+        });
+
+        tabSplit.addEventListener('click', () => {
+            currentMode = 'split';
+            tabSplit.classList.add('selected', 'split');
+            tabChase.classList.remove('selected');
+            configTitle.innerText = "1v1 Split Versus Config";
+            configTitle.style.color = "#00ffcc";
+            copGroup.style.display = 'none';
+            splitGroup.style.display = 'block';
+            rewardBox.style.display = 'none';
+            startBtn.style.background = "#00ffcc";
+            startBtn.style.borderColor = "#00ffcc";
+            startBtn.innerText = "START SPLIT MATCH";
+        });
+
+        document.getElementById('cam-btn').addEventListener('click', function() {
+            viewMode = (viewMode === 'close') ? 'wide' : 'close';
+            this.innerText = `View: ${viewMode === 'close' ? 'Close Chase' : 'Wide Arena'}`;
+        });
+
+        document.getElementById('drift-btn').addEventListener('click', function() {
+            driftMode = !driftMode;
+            if(driftMode) {
+                this.classList.add('active');
+                this.innerText = 'Drift Mode: ON';
+            } else {
+                this.classList.remove('active');
+                this.innerText = 'Drift Mode: OFF';
+            }
+        });
+
+        const copCountSel = document.getElementById('cop-count');
+        const durationSel = document.getElementById('chase-duration');
+        const difficultySel = document.getElementById('game-difficulty');
+        const rewardText = document.getElementById('calc-reward');
+
+        function updatePayoutFormula() {
+            if (currentMode === 'split') return;
+            const copsCount = parseInt(copCountSel.value);
+            const timeDur = parseInt(durationSel.value);
+            const diff = difficultySel.value;
+
+            let diffMultiplier = 1.0;
+            if (diff === 'easy') diffMultiplier = 0.6;
+            if (diff === 'hard') diffMultiplier = 1.7;
+
+            let calculated = Math.round((timeDur * 1.5) * (copsCount * 1.3) * diffMultiplier);
+            plannedReward = calculated;
+            rewardText.innerText = calculated;
+        }
+
+        copCountSel.addEventListener('change', updatePayoutFormula);
+        durationSel.addEventListener('change', updatePayoutFormula);
+        difficultySel.addEventListener('change', updatePayoutFormula);
+        updatePayoutFormula();
+
+        document.getElementById('shop-btn').addEventListener('click', function() {
+            document.getElementById('chase-setup').style.display = 'none';
+            document.getElementById('shop-panel').style.display = 'block';
+            renderShop();
+        });
+        document.getElementById('close-shop-x').addEventListener('click', function() {
+            document.getElementById('shop-panel').style.display = 'none';
+            document.getElementById('chase-setup').style.display = 'block';
+        });
+        document.getElementById('close-setup-x').addEventListener('click', function() {
+            document.getElementById('chase-setup').style.display = 'none';
+            document.getElementById('open-setup-btn').style.display = 'block';
+        });
+        document.getElementById('open-setup-btn').addEventListener('click', function() {
+            document.getElementById('chase-setup').style.display = 'block';
+            this.style.display = 'none';
+        });
+
+        function renderShop() {
+            const container = document.getElementById('shop-items-container');
+            container.innerHTML = '';
+            carCatalog.forEach(item => {
+                if (item.isHidden) return;
+                
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `shop-item ${item.id === activeCarId ? 'selected' : ''}`;
+                
+                let btnText = item.owned ? 'EQUIP' : `${item.price} ...`;
+                let btnClass = item.owned ? 'owned' : '';
+                if(item.id === activeCarId) {
+                    btnText = 'EQUIPPED';
+                    btnClass = 'active-car';
+                }
+
+                itemDiv.innerHTML = `
+                    <div class="item-info">
+                        <div class="item-name" style="color:${item.color === '#111113' ? '#888' : item.color}">${item.name}</div>
+                        <div class="item-stats">Speed: ${Math.round(item.maxSpeed * 4.3)} MPH | Accel: +${Math.round(item.accel * 100)}%</div>
+                    </div>
+                    <button class="shop-buy-btn ${btnClass}" onclick="handleShopAction('${item.id}')">${btnText}</button>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        window.handleShopAction = function(id) {
+            const target = carCatalog.find(c => c.id === id);
+            if(!target) return;
+
+            if(target.owned) {
+                activeCarId = id;
+                activeCarProfile = target;
+                syncCarProfile(car, target);
+                localStorage.setItem('drift_active_car', id);
+            } else {
+                if(playerWallet >= target.price) {
+                    playerWallet -= target.price;
+                    target.owned = true;
+                    activeCarId = id;
+                    activeCarProfile = target;
+                    syncCarProfile(car, target);
+                    
+                    localStorage.setItem('drift_coins', playerWallet);
+                    document.getElementById('coin-val').innerText = playerWallet;
+                    
+                    const ownedIds = carCatalog.filter(c => c.owned).map(c => c.id);
+                    localStorage.setItem('drift_owned_cars', JSON.stringify(ownedIds));
+                    localStorage.setItem('drift_active_car', id);
+                } else {
+                    alert("Insufficient coins!");
+                }
+            }
+            renderShop();
+        }
+
+        function syncCarProfile(carObj, profile) {
+            if (!carObj || !profile) return;
+            carObj.maxSpeed = profile.maxSpeed;
+            carObj.accel = profile.accel;
+            carObj.friction = profile.friction;
+            carObj.driftFactor = profile.driftFactor;
+        }
+
+        startBtn.addEventListener('click', function() {
+            chaseTimer = parseInt(durationSel.value);
+            
+            document.getElementById('chase-setup').style.display = 'none';
+            document.getElementById('open-setup-btn').style.display = 'none';
+            document.getElementById('shop-panel').style.display = 'none';
+            
+            car.x = -100; car.y = 0; car.speed = 0; car.vx = 0; car.vy = 0; car.angle = 0;
+            
+            if (currentMode === 'split') {
+                const splitSelectedId = document.getElementById('p2-car-select').value;
+                const chosenProfile = carCatalog.find(c => c.id === splitSelectedId) || carCatalog[0];
+                
+                activeCarId = splitSelectedId;
+                activeCarProfile = chosenProfile;
+                activeCarProfileP2 = chosenProfile;
+                
+                syncCarProfile(car, chosenProfile);
+                
+                car2 = {
+                    x: 100, y: 0, width: 34, length: 72, speed: 0,
+                    maxSpeed: chosenProfile.maxSpeed, maxRev: -8, accel: chosenProfile.accel, deccel: 0.2,
+                    brake: 0.8, friction: chosenProfile.friction, angle: Math.PI, steerAngle: 0,
+                    maxSteer: 0.11, driftFactor: chosenProfile.driftFactor, normalFactor: 0.12, vx: 0, vy: 0
+                };
+                
+                p1IsTagger = Math.random() < 0.5;
+
+                // Adjust the Runner's top speed to exactly 95% of the Tagger's top speed
+                if (p1IsTagger) {
+                    car2.maxSpeed = car.maxSpeed * 0.95;
+                } else {
+                    car.maxSpeed = car2.maxSpeed * 0.95;
+                }
+
+                document.getElementById('p2-speed-ui').style.display = 'block';
+                document.getElementById('p2-controls-inst').style.display = 'block';
+            } else {
+                activeCarProfile = carCatalog.find(c => c.id === activeCarId) || carCatalog[0];
+                syncCarProfile(car, activeCarProfile);
+                
+                car2 = null;
+                activeCarProfileP2 = null;
+                document.getElementById('p2-speed-ui').style.display = 'none';
+                document.getElementById('p2-controls-inst').style.display = 'none';
+            }
+
+            skidmarks = [];
+            cops = [];
+            gameActive = false;
+            gameEnding = false;
+            countdownActive = true;
+
+            if(timerInterval) clearInterval(timerInterval);
+
+            const overlay = document.getElementById('game-overlay');
+            const overlayP1 = document.getElementById('role-overlay-p1');
+            const overlayP2 = document.getElementById('role-overlay-p2');
+
+            overlay.style.display = 'none';
+            overlayP1.style.display = 'none';
+            overlayP2.style.display = 'none';
+
+            if (currentMode === 'split') {
+                overlayP1.style.display = 'block';
+                overlayP2.style.display = 'block';
+
+                if (p1IsTagger) {
+                    overlayP1.innerText = "YOU ARE TAGGER";
+                    overlayP1.style.color = "#ff3366";
+                    overlayP2.innerText = "YOU ARE RUNNER";
+                    overlayP2.style.color = "#00ffcc";
+                } else {
+                    overlayP1.innerText = "YOU ARE RUNNER";
+                    overlayP1.style.color = "#00ffcc";
+                    overlayP2.innerText = "YOU ARE TAGGER";
+                    overlayP2.style.color = "#ff3366";
+                }
+
+                setTimeout(() => {
+                    overlayP1.style.display = 'none';
+                    overlayP2.style.display = 'none';
+                    triggerMatchCountdown(5);
+                }, 3000);
+            } else {
+                triggerMatchCountdown(3);
+            }
+        });
+
+        function triggerMatchCountdown(startValue) {
+            let countdownVal = startValue;
+            const overlay = document.getElementById('game-overlay');
+            overlay.style.display = 'block';
+            overlay.style.color = currentMode === 'split' ? '#00ffcc' : '#ff3366';
+            overlay.innerText = countdownVal;
+
+            timerInterval = setInterval(() => {
+                countdownVal--;
+                if (countdownVal > 0) {
+                    overlay.innerText = countdownVal;
+                } else if (countdownVal === 0) {
+                    overlay.innerText = "GO!";
+                    
+                    if (currentMode === 'chase') {
+                        let numCops = parseInt(copCountSel.value);
+                        for (let i = 0; i < numCops; i++) {
+                            const spawnAngle = (Math.PI * 2 / numCops) * i;
+                            cops.push({
+                                x: Math.cos(spawnAngle) * 750 + car.x,
+                                y: Math.sin(spawnAngle) * 750 + car.y,
+                                width: 30, length: 65, angle: spawnAngle + Math.PI, speed: 0,
+                                maxSpeed: car.maxSpeed, accel: car.accel * 1.5, steerCap: 0.2, lightState: 0
+                            });
+                        }
+                    }
+                    
+                    countdownActive = false;
+                    gameActive = true;
+                    document.getElementById('chase-ui').style.display = 'block';
+                    document.getElementById('timer-val').innerText = chaseTimer;
+                } else {
+                    overlay.style.display = 'none';
+                    clearInterval(timerInterval);
+                    
+                    timerInterval = setInterval(() => {
+                        if (gameActive) {
+                            chaseTimer--;
+                            document.getElementById('timer-val').innerText = chaseTimer;
+                            if (chaseTimer <= 0) {
+                                endGame(true); 
+                            }
+                        }
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        function endGame(timeRanOut) {
+            gameActive = false;
+            gameEnding = true;
+            clearInterval(timerInterval);
+            const overlay = document.getElementById('game-overlay');
+            overlay.style.display = 'block';
+            
+            if (currentMode === 'split') {
+                overlay.style.color = '#00ffcc';
+                if (timeRanOut) {
+                    if (p1IsTagger) {
+                        overlay.innerText = `P2 (RUNNER) WINS!
+TIME'S UP!`;
+                    } else {
+                        overlay.innerText = `P1 (RUNNER) WINS!
+TIME'S UP!`;
+                    }
+                } else {
+                    if (p1IsTagger) {
+                        overlay.innerText = `P1 TAGGED P2!
+P1 WINS!`;
+                    } else {
+                        overlay.innerText = `P2 TAGGED P1!
+P2 WINS!`;
+                    }
+                }
+            } else {
+                if (timeRanOut) {
+                    overlay.style.color = '#00ffcc';
+                    overlay.innerText = `u won ...
++` + plannedReward + ` COINS`;
+                    playerWallet += plannedReward;
+                    localStorage.setItem('drift_coins', playerWallet);
+                    document.getElementById('coin-val').innerText = playerWallet;
+                } else {
+                    overlay.style.color = '#ff3366';
+                    overlay.innerText = 'BUSTED! ...';
+                }
+            }
+
+            car2 = null;
+            activeCarProfileP2 = null;
+            document.getElementById('p2-speed-ui').style.display = 'none';
+            document.getElementById('p2-controls-inst').style.display = 'none';
+
+            activeCarProfile = carCatalog.find(c => c.id === activeCarId) || carCatalog[0];
+            syncCarProfile(car, activeCarProfile);
+
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                document.getElementById('chase-setup').style.display = 'block';
+                updatePayoutFormula();
+                gameEnding = false;
+            }, 3000);
+        }
+
+        function simulateVehiclePhysics(carObj, upKey, downKey, leftKey, rightKey) {
+            if (!carObj) return;
+            
+            // Allow driving outside active match if no match is currently running or ending
+            if (!gameActive && (countdownActive || gameEnding)) {
+                carObj.speed = 0;
+                carObj.vx = 0;
+                carObj.vy = 0;
+                return;
+            }
+
+            if (upKey) {
+                carObj.speed = Math.min(carObj.speed + carObj.accel, carObj.maxSpeed);
+            } else if (downKey) {
+                carObj.speed = Math.max(carObj.speed - carObj.brake, carObj.maxRev);
+            } else {
+                if (carObj.speed > 0) carObj.speed = Math.max(carObj.speed - carObj.friction, 0);
+                if (carObj.speed < 0) carObj.speed = Math.min(carObj.speed + carObj.friction, 0);
+            }
+
+            if (leftKey) {
+                carObj.angle -= carObj.maxSteer;
+            } else if (rightKey) {
+                carObj.angle += carObj.maxSteer;
+            }
+
+            let forwardX = Math.cos(carObj.angle), forwardY = Math.sin(carObj.angle);
+            let slip = driftMode ? carObj.driftFactor : carObj.normalFactor;
+            
+            carObj.vx = carObj.vx * slip + (forwardX * carObj.speed) * (1 - slip);
+            carObj.vy = carObj.vy * slip + (forwardY * carObj.speed) * (1 - slip);
+            carObj.x += carObj.vx; 
+            carObj.y += carObj.vy;
+
+            if (driftMode && Math.abs(carObj.speed) > 3 && (leftKey || rightKey)) {
+                skidmarks.push({x: carObj.x, y: carObj.y});
+            }
+        }
+
+        function updatePhysics() {
+            const p1Up = keys['w'] || keys['W'];
+            const p1Down = keys['s'] || keys['S'];
+            const p1Left = keys['a'] || keys['A'];
+            const p1Right = keys['d'] || keys['D'];
+            simulateVehiclePhysics(car, p1Up, p1Down, p1Left, p1Right);
+
+            if (car2) {
+                const p2Up = keys['ArrowUp'];
+                const p2Down = keys['ArrowDown'];
+                const p2Left = keys['ArrowLeft'];
+                const p2Right = keys['ArrowRight'];
+                simulateVehiclePhysics(car2, p2Up, p2Down, p2Left, p2Right);
+            }
+
+            if (skidmarks.length > 2000) skidmarks.shift();
+
+            document.getElementById('sp').innerText = Math.round(Math.abs(car.speed) * 4.3);
+            if (car2) {
+                document.getElementById('sp2').innerText = Math.round(Math.abs(car2.speed) * 4.3);
+            }
+
+            if (gameActive && currentMode === 'split' && car2) {
+                let dx = car.x - car2.x;
+                let dy = car.y - car2.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 35) {
+                    endGame(false); 
+                }
+            }
+
+            if (gameActive && currentMode === 'chase') {
+                cops.forEach((cop) => {
+                    let target = car; 
+                    const dx = target.x - cop.x, dy = target.y - cop.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    
+                    cop.angle = Math.atan2(dy, dx); 
+                    cop.maxSpeed = target.speed;
+                    cop.speed = target.speed;
+                    
+                    cop.x += Math.cos(cop.angle) * cop.speed;
+                    cop.y += Math.sin(cop.angle) * cop.speed;
+                    cop.lightState = (cop.lightState + 1) % 16;
+
+                    if (dist < 36) { endGame(false); }
+                });
+            }
+        }
+
+        function drawRadar() {
+            mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+            const centerX = mapCanvas.width / 2, centerY = mapCanvas.height / 2;
+            
+            // Dynamically calculate bounding scale to track both cars continuously on the minimap
+            let scale = 0.08;
+            if (currentMode === 'split' && car2) {
+                let dx = Math.abs(car.x - car2.x);
+                let dy = Math.abs(car.y - car2.y);
+                let maxDist = Math.max(dx, dy, 50);
+                // Keeps elements comfortably bounded inside the 160x160 canvas frame (padding margins included)
+                scale = Math.min(0.08, 65 / maxDist);
+            }
+
+            mapCtx.fillStyle = '#111726';
+            mapCtx.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+
+            mapCtx.fillStyle = p1IsTagger ? '#ff3366' : '#00ffcc';
+            mapCtx.beginPath(); 
+            mapCtx.arc(centerX, centerY, 5, 0, Math.PI*2); 
+            mapCtx.fill();
+            
+            if (currentMode === 'split' && car2) {
+                mapCtx.fillStyle = '#fff';
+                mapCtx.font = 'bold 10px monospace';
+                mapCtx.fillText('P1', centerX - 6, centerY - 8);
+
+                let p2X = centerX + (car2.x - car.x) * scale;
+                let p2Y = centerY + (car2.y - car.y) * scale;
+                p2X = Math.max(8, Math.min(mapCanvas.width - 8, p2X));
+                p2Y = Math.max(8, Math.min(mapCanvas.height - 8, p2Y));
+                
+                mapCtx.fillStyle = p1IsTagger ? '#00ffcc' : '#ff3366';
+                mapCtx.beginPath(); 
+                mapCtx.arc(p2X, p2Y, 5, 0, Math.PI*2); 
+                mapCtx.fill();
+                
+                mapCtx.fillStyle = '#fff';
+                mapCtx.font = 'bold 10px monospace';
+                mapCtx.fillText('P2', p2X - 6, p2Y - 8);
+            }
+
+            if (gameActive && currentMode === 'chase') {
+                cops.forEach(cop => {
+                    let copX = centerX + (cop.x - car.x) * scale;
+                    let copY = centerY + (cop.y - car.y) * scale;
+                    copX = Math.max(5, Math.min(mapCanvas.width - 5, copX));
+                    copY = Math.max(5, Math.min(mapCanvas.height - 5, copY));
+                    
+                    mapCtx.fillStyle = '#0066ff'; 
+                    mapCtx.beginPath(); 
+                    mapCtx.arc(copX, copY, 4, 0, Math.PI*2); 
+                    mapCtx.fill();
+                });
+            }
+        }
+
+        function drawVehicleGeometry(targetCtx, profile, length, width, isAccelerating) {
+            const halfL = length / 2, halfW = width / 2;
+
+            targetCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            targetCtx.fillRect(-halfL - 4, -halfW - 4, length + 8, width + 8);
+
+            const tirePositions = [
+                {x: halfL - 16, y: -halfW - 2}, {x: halfL - 16, y: halfW},
+                {x: -halfL + 12, y: -halfW - 2}, {x: -halfL + 12, y: halfW}
+            ];
+            targetCtx.fillStyle = '#0d0d13';
+            tirePositions.forEach(t => {
+                targetCtx.fillRect(t.x, t.y, 14, 4);
+                targetCtx.fillStyle = '#6e7a8a';
+                targetCtx.fillRect(t.x + 4, t.y + 1, 6, 2);
+                targetCtx.fillStyle = '#0d0d13';
+            });
+
+            if (isAccelerating) {
+                targetCtx.fillStyle = '#ff6600';
+                targetCtx.fillRect(-halfL - 10, -halfW + 6, 12, 3);
+                targetCtx.fillRect(-halfL - 10, halfW - 9, 12, 3);
+                targetCtx.fillStyle = '#ffcc00';
+                targetCtx.fillRect(-halfL - 6, -halfW + 7, 8, 1);
+                targetCtx.fillRect(-halfL - 6, halfW - 8, 8, 1);
+            }
+
+            targetCtx.fillStyle = profile.color === 'rainbow' ? `hsl(${rainbowHue}, 100%, 50%)` : profile.color;
+
+            if (['huracan_black', 'lambo_gold', 'devxrbcar'].includes(profile.id)) {
+                targetCtx.beginPath();
+                targetCtx.moveTo(halfL, 0); 
+                targetCtx.lineTo(halfL - 14, -halfW + 1); 
+                targetCtx.lineTo(halfL - 26, -halfW); 
+                targetCtx.lineTo(-halfL + 20, -halfW + 2); 
+                targetCtx.lineTo(-halfL + 4, -halfW - 1); 
+                targetCtx.lineTo(-halfL, -halfW + 4); 
+                targetCtx.lineTo(-halfL, halfW - 4);
+                targetCtx.lineTo(-halfL + 4, halfW + 1);
+                targetCtx.lineTo(-halfL + 20, halfW - 2);
+                targetCtx.lineTo(halfL - 26, halfW);
+                targetCtx.lineTo(halfL - 14, halfW - 1);
+                targetCtx.closePath(); 
+                targetCtx.fill();
+
+                targetCtx.fillStyle = '#111115';
+                targetCtx.fillRect(halfL - 28, -halfW - 6, 3, 7);
+                targetCtx.fillRect(halfL - 28, halfW - 1, 3, 7);
+
+                targetCtx.fillStyle = '#070a14';
+                targetCtx.beginPath();
+                targetCtx.moveTo(halfL - 14, 0);
+                targetCtx.lineTo(halfL - 34, -halfW + 5);
+                targetCtx.lineTo(-halfL + 24, -halfW + 6);
+                targetCtx.lineTo(-halfL + 14, 0); 
+                targetCtx.lineTo(-halfL + 24, halfW - 6);
+                targetCtx.lineTo(halfL - 34, halfW - 5);
+                targetCtx.closePath(); 
+                targetCtx.fill();
+
+                targetCtx.fillStyle = 'rgba(0, 255, 204, 0.15)';
+                targetCtx.fillRect(-halfL + 24, -4, 16, 8);
+                targetCtx.fillStyle = '#111115';
+                targetCtx.fillRect(-halfL + 28, -4, 2, 8);
+                targetCtx.fillRect(-halfL + 34, -4, 2, 8);
+
+                targetCtx.fillStyle = '#1c1d24';
+                targetCtx.fillRect(-halfL - 4, -halfW - 2, 6, width + 4); 
+                targetCtx.fillStyle = profile.color === 'rainbow' ? '#fff' : profile.color;
+                targetCtx.fillRect(-halfL - 4, -halfW - 4, 6, 2); 
+                targetCtx.fillRect(-halfL - 4, halfW + 2, 6, 2);
+            } else if (profile.id === 'bugatti') {
+                let ssLength = length + 8;
+                let sHalfL = ssLength / 2;
+                
+                targetCtx.beginPath();
+                targetCtx.moveTo(sHalfL, 0);
+                targetCtx.bezierCurveTo(sHalfL, -halfW, sHalfL - 18, -halfW, sHalfL - 26, -halfW); 
+                targetCtx.lineTo(-sHalfL + 12, -halfW);
+                targetCtx.bezierCurveTo(-sHalfL, -halfW, -sHalfL, halfW, -sHalfL + 12, halfW); 
+                targetCtx.lineTo(sHalfL - 26, halfW);
+                targetCtx.bezierCurveTo(sHalfL - 18, halfW, sHalfL, halfW, sHalfL, 0);
+                targetCtx.closePath(); 
+                targetCtx.fill();
+
+                targetCtx.fillStyle = '#d1d5db';
+                targetCtx.beginPath();
+                targetCtx.ellipse(sHalfL - 2, 0, 4, 5, 0, 0, Math.PI * 2);
+                targetCtx.fill();
+
+                targetCtx.strokeStyle = '#f3f4f6';
+                targetCtx.lineWidth = 2.5;
+                targetCtx.beginPath();
+                targetCtx.arc(-2, 0, halfW - 2.5, -Math.PI / 2, Math.PI / 2, false);
+                targetCtx.stroke();
+
+                targetCtx.fillStyle = '#05070f';
+                targetCtx.beginPath();
+                targetCtx.ellipse(12, 0, 16, halfW - 4, 0, 0, Math.PI * 2);
+                targetCtx.fill();
+
+                targetCtx.fillStyle = '#ff003c';
+                targetCtx.fillRect(-sHalfL + 2, -halfW + 2, 3, width - 4); 
+                targetCtx.fillStyle = '#060d1a';
+                targetCtx.fillRect(-sHalfL - 5, -halfW + 3, 5, width - 6); 
+            } else if (profile.id === 'corvette') {
+                targetCtx.fillRect(-halfL, -halfW, length, width);
+                targetCtx.fillStyle = '#111111';
+                targetCtx.fillRect(-halfL + 24, -halfW + 3, 34, width - 6);
+            } else {
+                targetCtx.fillRect(-halfL, -halfW, length, width);
+                targetCtx.fillStyle = profile.stripe;
+                targetCtx.fillRect(-halfL, -4, length, 2);
+                targetCtx.fillRect(-halfL, 2, length, 2);
+                targetCtx.fillStyle = '#0a0f1d';
+                targetCtx.fillRect(-halfL + 24, -halfW + 3, 34, width - 6);
+            }
+        }
+
+        function renderSceneView(targetCtx, focusCar, viewW, viewH, startX, startY, isP1) {
+            targetCtx.save();
+            targetCtx.beginPath();
+            targetCtx.rect(startX, startY, viewW, viewH);
+            targetCtx.clip();
+
+            targetCtx.fillStyle = '#141a29';
+            targetCtx.fillRect(startX, startY, viewW, viewH);
+
+            targetCtx.save();
+            targetCtx.translate(startX + viewW / 2, startY + viewH / 2);
+            const zoom = (viewMode === 'close') ? 1.2 : 0.4;
+            targetCtx.scale(zoom, zoom);
+            targetCtx.translate(-focusCar.x, -focusCar.y);
+
+            targetCtx.strokeStyle = '#263554';
+            targetCtx.lineWidth = 2;
+            const sX = Math.floor((focusCar.x - viewW/zoom) / gridSpacing) * gridSpacing;
+            const eX = Math.ceil((focusCar.x + viewW/zoom) / gridSpacing) * gridSpacing;
+            const sY = Math.floor((focusCar.y - viewH/zoom) / gridSpacing) * gridSpacing;
+            const eY = Math.ceil((focusCar.y + viewH/zoom) / gridSpacing) * gridSpacing;
+
+            for (let x = sX; x <= eX; x += gridSpacing) {
+                targetCtx.beginPath(); targetCtx.moveTo(x, sY); targetCtx.lineTo(x, eY); targetCtx.stroke();
+            }
+            for (let y = sY; y <= eY; y += gridSpacing) {
+                targetCtx.beginPath(); targetCtx.moveTo(sX, y); targetCtx.lineTo(eX, y); targetCtx.stroke();
+            }
+
+            targetCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            skidmarks.forEach(mark => {
+                targetCtx.beginPath(); targetCtx.arc(mark.x, mark.y, 6, 0, Math.PI*2); targetCtx.fill();
+            });
+
+            if (gameActive && currentMode === 'chase') {
+                cops.forEach(cop => {
+                    targetCtx.save();
+                    targetCtx.translate(cop.x, cop.y); targetCtx.rotate(cop.angle);
+                    targetCtx.fillStyle = '#111111'; targetCtx.fillRect(-32, -15, cop.length, cop.width);
+                    targetCtx.fillStyle = '#ffffff'; targetCtx.fillRect(-10, -15, 20, cop.width);
+                    let pLight = cop.lightState < 8 ? '#ff003c' : '#0066ff';
+                    targetCtx.fillStyle = pLight; targetCtx.fillRect(-2, -5, 4, 10);
+                    targetCtx.restore();
+                });
+            }
+
+            targetCtx.save();
+            targetCtx.translate(car.x, car.y); targetCtx.rotate(car.angle);
+            const p1Accelerating = keys['w'] || keys['W'];
+            drawVehicleGeometry(targetCtx, activeCarProfile, car.length, car.width, p1Accelerating);
+            targetCtx.restore();
+
+            if (car2) {
+                targetCtx.save();
+                targetCtx.translate(car2.x, car2.y); targetCtx.rotate(car2.angle);
+                const p2Accelerating = keys['ArrowUp'];
+                drawVehicleGeometry(targetCtx, activeCarProfileP2, car2.length, car2.width, p2Accelerating);
+                targetCtx.restore();
+            }
+
+            targetCtx.restore();
+            targetCtx.restore();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            rainbowHue = (rainbowHue + 4) % 360;
+
+            if (currentMode === 'split' && car2) {
+                let halfW = canvas.width / 2;
+                renderSceneView(ctx, car, halfW, canvas.height, 0, 0, true);
+                renderSceneView(ctx, car2, halfW, canvas.height, halfW, 0, false);
+
+                ctx.strokeStyle = '#00ffcc';
+                ctx.lineWidth = 4;
+                ctx.beginPath(); 
+                ctx.moveTo(halfW, 0); 
+                ctx.lineTo(halfW, canvas.height); 
+                ctx.stroke();
+            } else {
+                renderSceneView(ctx, car, canvas.width, canvas.height, 0, 0, true);
+            }
+            drawRadar();
+        }
+
+        let audioCtx = null;
+        let synthInterval = null;
+        let musicGainNode = null;
+        const volSlider = document.getElementById('vol-slider');
+        const volVal = document.getElementById('vol-val');
+
+        window.addEventListener('click', () => {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        });
+
+        volSlider.addEventListener('input', function() {
+            const volume = parseFloat(this.value);
+            volVal.innerText = Math.round(volume * 100) + `%`;
+            if (musicGainNode && audioCtx) {
+                musicGainNode.gain.setValueAtTime(volume * 0.2, audioCtx.currentTime);
+            }
+        });
+
+        function playMusic(genre) {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                musicGainNode = audioCtx.createGain();
+                musicGainNode.gain.setValueAtTime(parseFloat(volSlider.value) * 0.2, audioCtx.currentTime);
+                musicGainNode.connect(audioCtx.destination);
+            }
+            
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            if (synthInterval) clearInterval(synthInterval);
+
+            document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('playing'));
+            if (genre === 'off') return;
+
+            const target = window.event?.target || document.querySelector(`[onclick="playMusic('` + genre + `')"]`);
+            if(target) target.classList.add('playing');
+
+            let index = 0, tempo = 120, notes = [60, 62, 64, 65, 67, 69, 71, 72];
+            
+            if (genre === 'pop') { tempo = 128; notes = [60, 64, 67, 64, 69, 65, 67, 62]; }
+            else if (genre === 'rock') { tempo = 140; notes = [45, 45, 48, 45, 50, 48, 47, 43]; }
+            else if (genre === 'calm') { tempo = 85; notes = [57, 60, 64, 62, 57, 60, 62, 59]; }
+
+            synthInterval = setInterval(() => {
+                if (!audioCtx || audioCtx.state === 'suspended') return;
+                
+                let time = audioCtx.currentTime;
+                let osc = audioCtx.createOscillator();
+                let noteGain = audioCtx.createGain();
+                
+                osc.connect(noteGain);
+                noteGain.connect(musicGainNode);
+
+                let base = notes[index % notes.length];
+                if(genre == 'rock') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(midiToFreq(base), time);
+                    noteGain.gain.setValueAtTime(0.08, time);
+                    noteGain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+                    osc.start(time); osc.stop(time + 0.35);
+                } else if(genre == 'pop') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(midiToFreq(base + 12), time);
+                    noteGain.gain.setValueAtTime(0.12, time);
+                    noteGain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+                    osc.start(time); osc.stop(time + 0.25);
+                } else {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(midiToFreq(base), time);
+                    noteGain.gain.setValueAtTime(0.15, time);
+                    noteGain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+                    osc.start(time); osc.stop(time + 0.5);
+                }
+                index++;
+            }, (60 / tempo) * 1000);
+        }
+
+        function midiToFreq(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+
+        const devGearBtn = document.getElementById('dev-gear-btn');
+        const devPanel = document.getElementById('dev-panel');
+        const closeDevX = document.getElementById('close-dev-x');
+        const devAddCoinsBtn = document.getElementById('dev-add-coins-btn');
+        const devUnlockCarBtn = document.getElementById('dev-unlock-car-btn');
+
+        devGearBtn.addEventListener('click', function() {
+            const passwordAttempt = prompt("ENTER AUTHORIZATION CODE:");
+            if (passwordAttempt === 'devxcoingenerator') {
+                devPanel.style.display = 'block';
+                document.getElementById('chase-setup').style.display = 'none';
+                document.getElementById('shop-panel').style.display = 'none';
+            } else if (passwordAttempt !== null) {
+                alert("ACCESS DENIED.");
+            }
+        });
+
+        closeDevX.addEventListener('click', function() {
+            devPanel.style.display = 'none';
+            document.getElementById('chase-setup').style.display = 'block';
+        });
+
+        devAddCoinsBtn.addEventListener('click', function() {
+            const targetAmount = prompt("SET EXACT COIN BALANCE VALUE:", playerWallet);
+            if (targetAmount !== null) {
+                const parsingCheck = parseInt(targetAmount);
+                if (!isNaN(parsingCheck) && parsingCheck >= 0) {
+                    playerWallet = parsingCheck;
+                    localStorage.setItem('drift_coins', playerWallet);
+                    document.getElementById('coin-val').innerText = playerWallet;
+                }
+            }
+        });
+
+        devUnlockCarBtn.addEventListener('click', function() {
+            const targetVehicle = prompt("ENTER EXACT CAR MODEL TO OVERRIDE:");
+            if (targetVehicle !== null) {
+                let lowerStr = targetVehicle.toLowerCase();
+                let targetMatch = null;
+                
+                if (lowerStr === 'devxrbcar' || lowerStr === 'rb car' || lowerStr === 'rbcar') {
+                    targetMatch = carCatalog.find(c => c.id === 'devxrbcar');
+                    document.getElementById('p2-rbcar-opt').style.display = 'block';
+                } else {
+                    targetMatch = carCatalog.find(c => c.name.toLowerCase().includes(lowerStr) || c.id.toLowerCase().includes(lowerStr));
+                }
+                
+                if (targetMatch) {
+                    targetMatch.owned = true;
+                    alert("code sucessfull"); 
+                    
+                    if (currentMode === 'split' && gameActive) {
+                        activeCarId = targetMatch.id; 
+                        activeCarProfile = targetMatch;
+                        activeCarProfileP2 = targetMatch;
+                        syncCarProfile(car, targetMatch);
+                        if (car2) {
+                            syncCarProfile(car2, targetMatch);
+                        }
+                        document.getElementById('p2-car-select').value = targetMatch.id;
+                        localStorage.setItem('drift_active_car', targetMatch.id);
+                    } else {
+                        activeCarId = targetMatch.id; 
+                        activeCarProfile = targetMatch;
+                        syncCarProfile(car, targetMatch);
+                        localStorage.setItem('drift_active_car', targetMatch.id);
+                    }
+                }
+            }
+        });
+
+        function tick() {
+            updatePhysics();
+            draw();
+            requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    </script>
+</body>
+</html>
